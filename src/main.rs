@@ -13,6 +13,6 @@ fn main() {
     cpu.set_pc_address(0x200);
     
     loop {
-        cpu.run_next_op(&mut mem);
+        cpu.run_next_op(&mut stack, &mut mem);
     }
 }

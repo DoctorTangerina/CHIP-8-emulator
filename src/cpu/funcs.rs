@@ -1,16 +1,20 @@
 use std::collections::BTreeMap;
 
-use crate::cpu::{cpu::SimCPU, op_table::CodeMask};
+use crate::{cpu::{cpu::SimCPU, op_table::CodeMask}, memory::memory::Memory, stack::stack::Stack};
 
 pub(super) struct Ctx<'a> {
     cpu: &'a mut SimCPU,
+    stack: &'a mut Stack,
+    memory: &'a mut Memory,
     args: u16
 }
 
 impl<'a> Ctx<'a> {
-    pub fn init(cpu: &'a mut SimCPU, i: u16) -> Self {
+    pub fn init(cpu: &'a mut SimCPU, stack: &'a mut Stack, memory: &'a mut Memory, i: u16) -> Self {
         Ctx {
             cpu: cpu,
+            stack: stack,
+            memory: memory,
             args: i
         }
     }
@@ -60,7 +64,7 @@ pub(super) fn init_functions() -> BTreeMap<CodeMask, fn(&mut Ctx<'_>)> {
 } 
 
 fn mccall(ctx: &mut Ctx) {
-    unimplemented!()
+    goto(ctx);
 }
 
 fn clear(ctx: &mut Ctx) {
@@ -68,7 +72,7 @@ fn clear(ctx: &mut Ctx) {
 }
 
 fn ret(ctx: &mut Ctx) {
-    unimplemented!()
+    ctx.cpu.set_pc_address(ctx.stack.pop(ctx.memory));
 }
 
 fn goto(ctx: &mut Ctx) {
@@ -76,7 +80,8 @@ fn goto(ctx: &mut Ctx) {
 }
 
 fn call(ctx: &mut Ctx) {
-    unimplemented!()
+    ctx.stack.push(ctx.memory, ctx.cpu.get_pc_address());
+    ctx.cpu.set_pc_address(ctx.args & 0x0FFF);
 }
 
 fn eq(ctx: &mut Ctx) {
@@ -220,7 +225,10 @@ fn jmp(ctx: &mut Ctx) {
 }
 
 fn rand(ctx: &mut Ctx) {
-    unimplemented!()
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+    let n: u8 = (ctx.args & 0xFF) as u8;
+
+    ctx.cpu.set_value_at_reg(x, rand::random::<u8>() & n);
 }
 
 fn draw(ctx: &mut Ctx) {
@@ -252,7 +260,9 @@ fn sndtm(ctx: &mut Ctx) {
 }
 
 fn iat(ctx: &mut Ctx) {
-    unimplemented!()
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+    
+    ctx.cpu.set_i_address(ctx.cpu.get_i_address() + (ctx.cpu.get_value_at_reg(x) as u16));
 }
 
 fn isprt(ctx: &mut Ctx) {
@@ -260,15 +270,44 @@ fn isprt(ctx: &mut Ctx) {
 }
 
 fn bcd(ctx: &mut Ctx) {
-    unimplemented!()
+    let x = ((ctx.args & 0xF00) >> 8) as u8;
+    let value = ctx.cpu.get_value_at_reg(x);
+
+    let digits = [value / 100, (value / 10) % 10, value % 10];
+    let i = ctx.cpu.get_i_address() as usize;
+
+    ctx.memory
+        .write(i, &digits)
+        .expect("Could not write BCD digits to memory");
+
 }
 
 fn str(ctx: &mut Ctx) {
-    unimplemented!()
+    let x = ((ctx.args & 0xF00) >> 8) as u8;
+    let index = ctx.cpu.get_i_address() as usize;
+
+    let mut v: Vec<u8> = vec![0; x as usize];
+    for i in 0..(x + 1) {
+        v[i as usize] = ctx.cpu.get_value_at_reg(i);
+    } 
+
+    ctx.memory
+            .write(index, &v)
+            .expect("Couldn't write to memory");
 }
 
 fn load(ctx: &mut Ctx) {
-    unimplemented!()
+    let x = ((ctx.args & 0xF00) >> 8) as u8;
+    let index = ctx.cpu.get_i_address() as usize;
+
+    let mut v: Vec<u8> = vec![0; x as usize];
+    ctx.memory
+            .read(index, v.len(), &mut v)
+            .expect("Couldn't read from memory");
+
+    for i in 0..(x + 1) {
+        v[i as usize] = ctx.cpu.get_value_at_reg(i);
+    } 
 }
 
 #[cfg(test)]
@@ -280,7 +319,9 @@ mod tests {
         let opcode: u16 = 0x0020;
 
         let mut cpu = SimCPU::init_cpu();
-        let mut ctx: Ctx = Ctx::init(&mut cpu, opcode);
+        let mut stack = Stack::init_stack();
+        let mut mem = Memory::init_memory();
+        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, opcode);
 
         // V0 = 0x20
         set(&mut ctx);

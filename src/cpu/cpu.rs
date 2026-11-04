@@ -5,6 +5,7 @@ use crate::cpu::funcs::{Ctx, init_functions};
 use crate::cpu::registers::{Register, AddrRegister};
 
 use crate::memory::memory::Memory;
+use crate::stack::stack::Stack;
 
 pub struct SimCPU {
     regs: Vec<Register>,
@@ -23,7 +24,7 @@ impl SimCPU {
         }
     }
 
-    pub fn run_next_op(&mut self, mem: &mut Memory) {
+    pub fn run_next_op(&mut self, stack: &mut Stack, mem: &mut Memory) {
         let addr: u16 = self.get_pc_address();
         self.set_pc_address(addr + 2);
         
@@ -34,7 +35,7 @@ impl SimCPU {
             .expect("Function not found");
         
         {
-            let mut ctx: Ctx = Ctx::init(self, code);
+            let mut ctx: Ctx = Ctx::init(self, stack, mem, code);
             handler(&mut ctx);
         }
     }
@@ -83,12 +84,13 @@ mod tests {
 
         let mut cpu: SimCPU = SimCPU::init_cpu();
         let mut mem: Memory = Memory::init_memory();
+        let mut stack: Stack = Stack::init_stack();
 
         mem.write(0, &code).expect("Couldn't initialize code");
 
         let mut i: usize = usize::from(cpu.get_pc_address());
         while i < code.len() {
-            cpu.run_next_op(&mut mem);
+            cpu.run_next_op(&mut stack, &mut mem);
 
             i = usize::from(cpu.get_pc_address());
         }
@@ -112,12 +114,13 @@ mod tests {
 
         let mut cpu: SimCPU = SimCPU::init_cpu();
         let mut mem: Memory = Memory::init_memory();
+        let mut stack: Stack = Stack::init_stack();
 
         mem.write(0, &code).expect("Couldn't initialize code");
 
         let mut i: usize = usize::from(cpu.get_pc_address());
         while i < code.len() {
-            cpu.run_next_op(&mut mem);
+            cpu.run_next_op(&mut stack, &mut mem);
 
             i = usize::from(cpu.get_pc_address());
         }
