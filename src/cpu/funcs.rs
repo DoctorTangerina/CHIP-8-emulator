@@ -1,20 +1,33 @@
 use std::collections::BTreeMap;
 
-use crate::{cpu::{cpu::SimCPU, op_table::CodeMask}, memory::memory::Memory, stack::stack::Stack};
+use crate::{
+    cpu::{cpu::SimCPU, op_table::CodeMask},
+    graphic::screen::Screen,
+    memory::memory::Memory,
+    stack::stack::Stack,
+};
 
 pub(super) struct Ctx<'a> {
     cpu: &'a mut SimCPU,
     stack: &'a mut Stack,
     memory: &'a mut Memory,
+    screen: &'a mut Screen,
     args: u16
 }
 
 impl<'a> Ctx<'a> {
-    pub fn init(cpu: &'a mut SimCPU, stack: &'a mut Stack, memory: &'a mut Memory, i: u16) -> Self {
+    pub fn init(
+        cpu: &'a mut SimCPU,
+        stack: &'a mut Stack,
+        memory: &'a mut Memory,
+        screen: &'a mut Screen,
+        i: u16,
+    ) -> Self {
         Ctx {
             cpu: cpu,
             stack: stack,
             memory: memory,
+            screen,
             args: i
         }
     }
@@ -68,7 +81,7 @@ fn mccall(ctx: &mut Ctx) {
 }
 
 fn clear(ctx: &mut Ctx) {
-    unimplemented!()
+    ctx.screen.clear();
 }
 
 fn ret(ctx: &mut Ctx) {
@@ -232,31 +245,41 @@ fn rand(ctx: &mut Ctx) {
 }
 
 fn draw(ctx: &mut Ctx) {
-    unimplemented!()
+    let x = ((ctx.args & 0xF00) >> 8) as u8;
+    let y = ((ctx.args & 0xF0) >> 4) as u8;
+    let height = (ctx.args & 0xF) as u8;
+    let collision = ctx.screen.draw(
+        ctx.cpu.get_value_at_reg(x),
+        ctx.cpu.get_value_at_reg(y),
+        ctx.memory,
+        ctx.cpu.get_i_address(),
+        height,
+    );
+    ctx.cpu.set_value_at_reg(0xF, u8::from(collision));
 }
 
 fn prsd(ctx: &mut Ctx) {
-    unimplemented!()
+    unimplemented!("prsd")
 }
 
 fn nprsd(ctx: &mut Ctx) {
-    unimplemented!()
+    unimplemented!("nprsd")
 }
 
 fn gettm(ctx: &mut Ctx) {
-    unimplemented!()
+    unimplemented!("gettm")
 }
 
 fn getin(ctx: &mut Ctx) {
-    unimplemented!()
+    unimplemented!("getin")
 }
 
 fn settm(ctx: &mut Ctx) {
-    unimplemented!()
+    unimplemented!("settm")
 }
 
 fn sndtm(ctx: &mut Ctx) {
-    unimplemented!()
+    unimplemented!("sndtm")
 }
 
 fn iat(ctx: &mut Ctx) {
@@ -266,7 +289,9 @@ fn iat(ctx: &mut Ctx) {
 }
 
 fn isprt(ctx: &mut Ctx) {
-    unimplemented!()
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+    
+    ctx.cpu.set_i_address((ctx.cpu.get_value_at_reg(x) * 5) as u16);
 }
 
 fn bcd(ctx: &mut Ctx) {
@@ -286,8 +311,8 @@ fn str(ctx: &mut Ctx) {
     let x = ((ctx.args & 0xF00) >> 8) as u8;
     let index = ctx.cpu.get_i_address() as usize;
 
-    let mut v: Vec<u8> = vec![0; x as usize];
-    for i in 0..(x + 1) {
+    let mut v: Vec<u8> = vec![0; (x + 1) as usize];
+    for i in 0..=x {
         v[i as usize] = ctx.cpu.get_value_at_reg(i);
     } 
 
@@ -300,13 +325,13 @@ fn load(ctx: &mut Ctx) {
     let x = ((ctx.args & 0xF00) >> 8) as u8;
     let index = ctx.cpu.get_i_address() as usize;
 
-    let mut v: Vec<u8> = vec![0; x as usize];
+    let mut v: Vec<u8> = vec![0; (x + 1) as usize];
     ctx.memory
             .read(index, v.len(), &mut v)
             .expect("Couldn't read from memory");
 
-    for i in 0..(x + 1) {
-        v[i as usize] = ctx.cpu.get_value_at_reg(i);
+    for i in 0..=x {
+        ctx.cpu.set_value_at_reg(i, v[i as usize]);
     } 
 }
 
@@ -321,7 +346,8 @@ mod tests {
         let mut cpu = SimCPU::init_cpu();
         let mut stack = Stack::init_stack();
         let mut mem = Memory::init_memory();
-        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, opcode);
+        let mut screen = Screen::default();
+        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, opcode);
 
         // V0 = 0x20
         set(&mut ctx);
