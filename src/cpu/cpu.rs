@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 
-use crate::cpu::op_table::{CodeMask, match_mask};
 use crate::cpu::funcs::{Ctx, init_functions};
-use crate::cpu::registers::{Register, AddrRegister};
+use crate::cpu::op_table::{CodeMask, match_mask};
+use crate::cpu::registers::{AddrRegister, Register};
 
+use crate::graphic::screen::Screen;
 use crate::memory::memory::Memory;
 use crate::stack::stack::Stack;
-use crate::graphic::screen::Screen;
 
 pub struct SimCPU {
     regs: Vec<Register>,
     addr_reg: AddrRegister,
     prog_counter: AddrRegister,
-    op_list: BTreeMap<CodeMask, fn(&mut Ctx<'_>)>
+    op_list: BTreeMap<CodeMask, fn(&mut Ctx<'_>)>,
 }
 
 impl SimCPU {
@@ -21,20 +21,21 @@ impl SimCPU {
             regs: (0..0x10).map(|_i: i32| Register::init()).collect(),
             addr_reg: AddrRegister::init(),
             prog_counter: AddrRegister::init(),
-            op_list: init_functions()
+            op_list: init_functions(),
         }
     }
 
     pub fn run_next_op(&mut self, stack: &mut Stack, mem: &mut Memory, screen: &mut Screen) {
         let addr: u16 = self.get_pc_address();
         self.set_pc_address(addr + 2);
-        
+
         let code: u16 = mem.fetch_op(usize::from(addr));
 
-        let handler = *self.op_list
+        let handler = *self
+            .op_list
             .get(&match_mask(code).expect("Operation unknown"))
             .expect("Function not found");
-        
+
         {
             let mut ctx: Ctx = Ctx::init(self, stack, mem, screen, code);
             handler(&mut ctx);
@@ -70,7 +71,6 @@ impl SimCPU {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -80,7 +80,7 @@ mod tests {
         let code: Vec<u8> = vec![
             0x60, 0x20, // V0 = 0x20
             0x61, 0x12, // V1 = 0x12
-            0x80, 0x14  // V0 += V1
+            0x80, 0x14, // V0 += V1
         ];
 
         let mut cpu: SimCPU = SimCPU::init_cpu();
@@ -97,7 +97,14 @@ mod tests {
             i = usize::from(cpu.get_pc_address());
         }
 
-        assert_eq!(cpu.get_value_at_reg(1), 0x12, "value in reg {} is {}, expected {}", 1, cpu.get_value_at_reg(1), 0x12);
+        assert_eq!(
+            cpu.get_value_at_reg(1),
+            0x12,
+            "value in reg {} is {}, expected {}",
+            1,
+            cpu.get_value_at_reg(1),
+            0x12
+        );
         assert_eq!(cpu.get_value_at_reg(0), 0x32);
         assert_eq!(cpu.get_value_at_reg(0xF), 0);
         assert_eq!(i, 6); // 6 as in next operations

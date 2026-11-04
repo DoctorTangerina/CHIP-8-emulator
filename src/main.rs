@@ -11,9 +11,7 @@ fn main() {
     let mut mem = Memory::init_memory();
     let stack: Stack = Stack::init_stack();
 
-    let rom_path = args()
-        .nth(1)
-        .expect("Usage: emulator_CHIP-8 <rom-path>");
+    let rom_path = args().nth(1).expect("Usage: emulator_CHIP-8 <rom-path>");
 
     load_program(&mut mem, &rom_path).expect("Could not load rom");
     cpu.set_pc_address(0x200);

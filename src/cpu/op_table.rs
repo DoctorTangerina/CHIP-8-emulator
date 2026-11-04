@@ -35,7 +35,7 @@ pub(super) enum CodeMask {
     Isprt = 0xF029,
     Bcd = 0xF033,
     Str = 0xF055,
-    Load = 0xF065
+    Load = 0xF065,
 }
 
 const OPCODES: &[(u16, u16, CodeMask)] = &[
@@ -74,7 +74,7 @@ const OPCODES: &[(u16, u16, CodeMask)] = &[
     (0xF0FF, 0xF029, CodeMask::Isprt),
     (0xF0FF, 0xF033, CodeMask::Bcd),
     (0xF0FF, 0xF055, CodeMask::Str),
-    (0xF0FF, 0xF065, CodeMask::Load)
+    (0xF0FF, 0xF065, CodeMask::Load),
 ];
 
 pub fn match_mask(opcode: u16) -> Option<CodeMask> {

@@ -1,9 +1,9 @@
 pub(super) struct Register {
-    byte: u8
+    byte: u8,
 }
 
 pub(super) struct AddrRegister {
-    addr: u16
+    addr: u16,
 }
 
 impl Register {
@@ -50,7 +50,7 @@ mod tests {
         let mut reg = Register::init();
 
         reg.set_value(0x2A);
-    
+
         assert_eq!(reg.get_value(), 0x2A);
     }
 
@@ -88,11 +88,11 @@ mod tests {
     }
 
     #[test]
-    fn addr_overflows_address () {
+    fn addr_overflows_address() {
         let mut addr_reg = AddrRegister::init();
 
         addr_reg.set_addr(0xFFFF);
 
-        assert_eq!(addr_reg.get_addr(), 0x0FFF); 
+        assert_eq!(addr_reg.get_addr(), 0x0FFF);
     }
 }

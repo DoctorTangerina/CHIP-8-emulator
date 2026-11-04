@@ -12,7 +12,7 @@ pub(super) struct Ctx<'a> {
     stack: &'a mut Stack,
     memory: &'a mut Memory,
     screen: &'a mut Screen,
-    args: u16
+    args: u16,
 }
 
 impl<'a> Ctx<'a> {
@@ -28,14 +28,13 @@ impl<'a> Ctx<'a> {
             stack: stack,
             memory: memory,
             screen,
-            args: i
+            args: i,
         }
     }
 }
 
 pub(super) fn init_functions() -> BTreeMap<CodeMask, fn(&mut Ctx<'_>)> {
-    let func_ls: BTreeMap<CodeMask, fn(&mut Ctx<'_>)> = BTreeMap::from(
-        [
+    let func_ls: BTreeMap<CodeMask, fn(&mut Ctx<'_>)> = BTreeMap::from([
         (CodeMask::Mccall, mccall as fn(&mut Ctx<'_>)),
         (CodeMask::Clear, clear),
         (CodeMask::Ret, ret),
@@ -74,7 +73,7 @@ pub(super) fn init_functions() -> BTreeMap<CodeMask, fn(&mut Ctx<'_>)> {
     ]);
 
     func_ls
-} 
+}
 
 fn mccall(ctx: &mut Ctx) {
     goto(ctx);
@@ -121,7 +120,7 @@ fn req(ctx: &mut Ctx) {
 
     if ctx.cpu.get_value_at_reg(x) != ctx.cpu.get_value_at_reg(y) {
         ctx.cpu.skip_next_instruction();
-    }    
+    }
 }
 
 fn set(ctx: &mut Ctx) {
@@ -136,7 +135,7 @@ fn sum(ctx: &mut Ctx) {
     let n: u8 = (ctx.args & 0xFF) as u8;
 
     let (sum, _) = ctx.cpu.get_value_at_reg(x).overflowing_add(n);
-    
+
     ctx.cpu.set_value_at_reg(x, sum);
 }
 
@@ -151,30 +150,38 @@ fn or(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) | ctx.cpu.get_value_at_reg(y));
+    ctx.cpu
+        .set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) | ctx.cpu.get_value_at_reg(y));
 }
 
 fn and(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) & ctx.cpu.get_value_at_reg(y));
+    ctx.cpu
+        .set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) & ctx.cpu.get_value_at_reg(y));
 }
 
 fn xor(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) ^ ctx.cpu.get_value_at_reg(y));
+    ctx.cpu
+        .set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) ^ ctx.cpu.get_value_at_reg(y));
 }
 
 fn add(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let (sum, carry) = ctx.cpu.get_value_at_reg(x).overflowing_add(ctx.cpu.get_value_at_reg(y));
+    let (sum, carry) = ctx
+        .cpu
+        .get_value_at_reg(x)
+        .overflowing_add(ctx.cpu.get_value_at_reg(y));
 
-    if carry {ctx.cpu.set_value_at_reg(0xF, 1);}
+    if carry {
+        ctx.cpu.set_value_at_reg(0xF, 1);
+    }
     ctx.cpu.set_value_at_reg(x, sum);
 }
 
@@ -182,9 +189,14 @@ fn sub(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let (sub, carry) = ctx.cpu.get_value_at_reg(x).overflowing_sub(ctx.cpu.get_value_at_reg(y));
+    let (sub, carry) = ctx
+        .cpu
+        .get_value_at_reg(x)
+        .overflowing_sub(ctx.cpu.get_value_at_reg(y));
 
-    if carry {ctx.cpu.set_value_at_reg(0xF, 1);}
+    if carry {
+        ctx.cpu.set_value_at_reg(0xF, 1);
+    }
     ctx.cpu.set_value_at_reg(x, sub);
 }
 
@@ -201,9 +213,14 @@ fn subl(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let (sub, carry) = ctx.cpu.get_value_at_reg(y).overflowing_sub(ctx.cpu.get_value_at_reg(x));
+    let (sub, carry) = ctx
+        .cpu
+        .get_value_at_reg(y)
+        .overflowing_sub(ctx.cpu.get_value_at_reg(x));
 
-    if carry {ctx.cpu.set_value_at_reg(0xF, 1);}
+    if carry {
+        ctx.cpu.set_value_at_reg(0xF, 1);
+    }
     ctx.cpu.set_value_at_reg(x, sub);
 }
 
@@ -226,15 +243,16 @@ fn rneq(ctx: &mut Ctx) {
 }
 
 fn addr(ctx: &mut Ctx) {
-    let n : u16 = ctx.args & 0xFFF;
+    let n: u16 = ctx.args & 0xFFF;
 
     ctx.cpu.set_i_address(n);
 }
 
 fn jmp(ctx: &mut Ctx) {
-    let n : u16 = ctx.args & 0xFFF;
+    let n: u16 = ctx.args & 0xFFF;
 
-    ctx.cpu.set_pc_address(n + ctx.cpu.get_value_at_reg(0) as u16);
+    ctx.cpu
+        .set_pc_address(n + ctx.cpu.get_value_at_reg(0) as u16);
 }
 
 fn rand(ctx: &mut Ctx) {
@@ -284,14 +302,16 @@ fn sndtm(ctx: &mut Ctx) {
 
 fn iat(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
-    
-    ctx.cpu.set_i_address(ctx.cpu.get_i_address() + (ctx.cpu.get_value_at_reg(x) as u16));
+
+    ctx.cpu
+        .set_i_address(ctx.cpu.get_i_address() + (ctx.cpu.get_value_at_reg(x) as u16));
 }
 
 fn isprt(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
-    
-    ctx.cpu.set_i_address((ctx.cpu.get_value_at_reg(x) * 5) as u16);
+
+    ctx.cpu
+        .set_i_address((ctx.cpu.get_value_at_reg(x) * 5) as u16);
 }
 
 fn bcd(ctx: &mut Ctx) {
@@ -304,7 +324,6 @@ fn bcd(ctx: &mut Ctx) {
     ctx.memory
         .write(i, &digits)
         .expect("Could not write BCD digits to memory");
-
 }
 
 fn str(ctx: &mut Ctx) {
@@ -314,11 +333,11 @@ fn str(ctx: &mut Ctx) {
     let mut v: Vec<u8> = vec![0; (x + 1) as usize];
     for i in 0..=x {
         v[i as usize] = ctx.cpu.get_value_at_reg(i);
-    } 
+    }
 
     ctx.memory
-            .write(index, &v)
-            .expect("Couldn't write to memory");
+        .write(index, &v)
+        .expect("Couldn't write to memory");
 }
 
 fn load(ctx: &mut Ctx) {
@@ -327,12 +346,12 @@ fn load(ctx: &mut Ctx) {
 
     let mut v: Vec<u8> = vec![0; (x + 1) as usize];
     ctx.memory
-            .read(index, v.len(), &mut v)
-            .expect("Couldn't read from memory");
+        .read(index, v.len(), &mut v)
+        .expect("Couldn't read from memory");
 
     for i in 0..=x {
         ctx.cpu.set_value_at_reg(i, v[i as usize]);
-    } 
+    }
 }
 
 #[cfg(test)]

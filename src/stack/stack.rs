@@ -1,7 +1,7 @@
 use crate::memory::memory::Memory;
 
 pub struct Stack {
-    top: usize
+    top: usize,
 }
 
 const STACK_BASE: usize = 0xEA0;
@@ -9,9 +9,7 @@ const STACK_MAX: usize = 0xF00;
 
 impl Stack {
     pub fn init_stack() -> Self {
-        Stack {
-            top: STACK_BASE
-        }
+        Stack { top: STACK_BASE }
     }
 
     fn check_limits(&self) -> bool {
@@ -21,17 +19,22 @@ impl Stack {
     pub fn pop(&mut self, mem: &Memory) -> u16 {
         self.top -= 2;
         let addr: u16 = mem.fetch_op(self.top);
-        
-        if self.check_limits() { panic!("Stack overflow") }
-        
+
+        if self.check_limits() {
+            panic!("Stack overflow")
+        }
+
         addr
     }
 
     pub fn push(&mut self, mem: &mut Memory, addr: u16) {
-        mem.write(self.top, &addr.to_be_bytes()).expect("Stack overflow");
+        mem.write(self.top, &addr.to_be_bytes())
+            .expect("Stack overflow");
         self.top += 2;
 
-        if self.check_limits() { panic!("Stack overflow") }
+        if self.check_limits() {
+            panic!("Stack overflow")
+        }
     }
 }
 

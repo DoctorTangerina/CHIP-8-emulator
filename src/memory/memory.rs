@@ -10,7 +10,7 @@ impl Memory {
             _mem: vec![0u8; MEMORY_TOTAL_SIZE]
                 .into_boxed_slice()
                 .try_into()
-                .unwrap()
+                .unwrap(),
         }
     }
 
@@ -23,10 +23,7 @@ impl Memory {
             .checked_add(code.len())
             .filter(|&end| end <= MEMORY_TOTAL_SIZE)
             .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Out of memory",
-                )
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "Out of memory")
             })?;
 
         self._mem[start..end].copy_from_slice(code);
@@ -38,14 +35,10 @@ impl Memory {
             .checked_add(size)
             .filter(|&end| end <= MEMORY_TOTAL_SIZE)
             .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidInput,
-                    "Out of memory",
-                )
+                std::io::Error::new(std::io::ErrorKind::InvalidInput, "Out of memory")
             })?;
-        
+
         rc.copy_from_slice(&self._mem[at..end]);
         Ok(())
     }
-
 }
