@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::register::{cpu::SimCPU, op_table::CodeMask};
+use crate::cpu::{cpu::SimCPU, op_table::CodeMask};
 
 pub(super) struct Ctx<'a> {
     cpu: &'a mut SimCPU,
@@ -72,7 +72,7 @@ fn ret(ctx: &mut Ctx) {
 }
 
 fn goto(ctx: &mut Ctx) {
-    unimplemented!()
+    ctx.cpu.set_pc_address(ctx.args & 0x0FFF);
 }
 
 fn call(ctx: &mut Ctx) {
@@ -83,8 +83,8 @@ fn eq(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let n: u8 = (ctx.args & 0xFF) as u8;
 
-    if ctx.cpu.GetValueAtReg(x) == n {
-        ctx.cpu.SkipNextInstruction();
+    if ctx.cpu.get_value_at_reg(x) == n {
+        ctx.cpu.skip_next_instruction();
     }
 }
 
@@ -92,8 +92,8 @@ fn neq(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let n: u8 = (ctx.args & 0xFF) as u8;
 
-    if ctx.cpu.GetValueAtReg(x) != n {
-        ctx.cpu.SkipNextInstruction();
+    if ctx.cpu.get_value_at_reg(x) != n {
+        ctx.cpu.skip_next_instruction();
     }
 }
 
@@ -101,8 +101,8 @@ fn req(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    if ctx.cpu.GetValueAtReg(x) != ctx.cpu.GetValueAtReg(y) {
-        ctx.cpu.SkipNextInstruction();
+    if ctx.cpu.get_value_at_reg(x) != ctx.cpu.get_value_at_reg(y) {
+        ctx.cpu.skip_next_instruction();
     }    
 }
 
@@ -110,105 +110,113 @@ fn set(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let n: u8 = (ctx.args & 0xFF) as u8;
 
-    ctx.cpu.SetValueAtReg(x, n);
+    ctx.cpu.set_value_at_reg(x, n);
 }
 
 fn sum(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let n: u8 = (ctx.args & 0xFF) as u8;
 
-    ctx.cpu.SetValueAtReg(x, (ctx.cpu.GetValueAtReg(x) + n & 0xF) as u8);
+    let (sum, _) = ctx.cpu.get_value_at_reg(x).overflowing_add(n);
+    
+    ctx.cpu.set_value_at_reg(x, sum);
 }
 
 fn mov(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(y));
+    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(y));
 }
 
 fn or(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(x) | ctx.cpu.GetValueAtReg(y));
+    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) | ctx.cpu.get_value_at_reg(y));
 }
 
 fn and(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(x) & ctx.cpu.GetValueAtReg(y));
+    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) & ctx.cpu.get_value_at_reg(y));
 }
 
 fn xor(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(x) ^ ctx.cpu.GetValueAtReg(y));
+    ctx.cpu.set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) ^ ctx.cpu.get_value_at_reg(y));
 }
 
 fn add(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    //needs to set VF
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(x) + ctx.cpu.GetValueAtReg(y));
+    let (sum, carry) = ctx.cpu.get_value_at_reg(x).overflowing_add(ctx.cpu.get_value_at_reg(y));
+
+    if carry {ctx.cpu.set_value_at_reg(0xF, 1);}
+    ctx.cpu.set_value_at_reg(x, sum);
 }
 
 fn sub(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    //needs to set VF
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(x) - ctx.cpu.GetValueAtReg(y));
+    let (sub, carry) = ctx.cpu.get_value_at_reg(x).overflowing_sub(ctx.cpu.get_value_at_reg(y));
+
+    if carry {ctx.cpu.set_value_at_reg(0xF, 1);}
+    ctx.cpu.set_value_at_reg(x, sub);
 }
 
 fn shfr(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let u: u8 = ctx.cpu.GetValueAtReg(x);
-    ctx.cpu.SetValueAtReg(0xF, u & 0x1);
-    ctx.cpu.SetValueAtReg(x, u >> 1);
+    let u: u8 = ctx.cpu.get_value_at_reg(x);
+    ctx.cpu.set_value_at_reg(0xF, u & 0x1);
+    ctx.cpu.set_value_at_reg(x, u >> 1);
 }
 
 fn subl(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    //needs to set VF
-    ctx.cpu.SetValueAtReg(x, ctx.cpu.GetValueAtReg(y) - ctx.cpu.GetValueAtReg(x));
+    let (sub, carry) = ctx.cpu.get_value_at_reg(y).overflowing_sub(ctx.cpu.get_value_at_reg(x));
+
+    if carry {ctx.cpu.set_value_at_reg(0xF, 1);}
+    ctx.cpu.set_value_at_reg(x, sub);
 }
 
 fn shfl(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let u: u8 = ctx.cpu.GetValueAtReg(x);
-    ctx.cpu.SetValueAtReg(0xF, u & 0x80);
-    ctx.cpu.SetValueAtReg(x, u << 1);
+    let u: u8 = ctx.cpu.get_value_at_reg(x);
+    ctx.cpu.set_value_at_reg(0xF, u & 0x80);
+    ctx.cpu.set_value_at_reg(x, u << 1);
 }
 
 fn rneq(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    if ctx.cpu.GetValueAtReg(x) != ctx.cpu.GetValueAtReg(y) {
-        ctx.cpu.SkipNextInstruction();
+    if ctx.cpu.get_value_at_reg(x) != ctx.cpu.get_value_at_reg(y) {
+        ctx.cpu.skip_next_instruction();
     }
 }
 
 fn addr(ctx: &mut Ctx) {
     let n : u16 = ctx.args & 0xFFF;
 
-    ctx.cpu.SetIAddress(n);
+    ctx.cpu.set_i_address(n);
 }
 
 fn jmp(ctx: &mut Ctx) {
     let n : u16 = ctx.args & 0xFFF;
 
-    ctx.cpu.SetPcAddress(n + ctx.cpu.GetValueAtReg(0) as u16);
+    ctx.cpu.set_pc_address(n + ctx.cpu.get_value_at_reg(0) as u16);
 }
 
 fn rand(ctx: &mut Ctx) {
@@ -269,13 +277,14 @@ mod tests {
 
     #[test]
     fn test_set_func() {
-        let opcode: u16 = 0x6020;
+        let opcode: u16 = 0x0020;
 
         let mut cpu = SimCPU::init_cpu();
         let mut ctx: Ctx = Ctx::init(&mut cpu, opcode);
 
+        // V0 = 0x20
         set(&mut ctx);
 
-        assert_eq!(ctx.cpu.GetValueAtReg(0), 0x20)
+        assert_eq!(ctx.cpu.get_value_at_reg(0), 0x20)
     }
 }

@@ -77,7 +77,7 @@ const OPCODES: &[(u16, u16, CodeMask)] = &[
     (0xF0FF, 0xF065, CodeMask::Load)
 ];
 
-pub fn MatchMask(opcode: u16) -> Option<CodeMask> {
+pub fn match_mask(opcode: u16) -> Option<CodeMask> {
     OPCODES
         .iter()
         .find(|&&(mask, pattern, _)| opcode & mask == pattern)
