@@ -1,0 +1,85 @@
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[repr(u16)]
+pub(super) enum CodeMask {
+    Mccall = 0x0000,
+    Clear = 0x00E0,
+    Ret = 0x00EE,
+    Goto = 0x1000,
+    Call = 0x2000,
+    Eq = 0x3000,
+    Neq = 0x4000,
+    Req = 0x5000,
+    Set = 0x6000,
+    Sum = 0x7000,
+    Mov = 0x8000,
+    Or = 0x8001,
+    And = 0x8002,
+    Xor = 0x8003,
+    Add = 0x8004,
+    Sub = 0x8005,
+    Shfr = 0x8006,
+    Subl = 0x8007,
+    Shfl = 0x800E,
+    Rneq = 0x9000,
+    Addr = 0xA000,
+    Jmp = 0xB000,
+    Rand = 0xC000,
+    Draw = 0xD000,
+    Prsd = 0xE09E,
+    Nprsd = 0xE0A1,
+    Gettm = 0xF007,
+    Getin = 0xF00A,
+    Settm = 0xF015,
+    Sndtm = 0xF018,
+    Iat = 0xF01E,
+    Isprt = 0xF029,
+    Bcd = 0xF033,
+    Str = 0xF055,
+    Load = 0xF065
+}
+
+const OPCODES: &[(u16, u16, CodeMask)] = &[
+    // (mask, pattern, instruction)
+    (0xF000, 0x0000, CodeMask::Mccall),
+    (0xFFFF, 0x00E0, CodeMask::Clear),
+    (0xFFFF, 0x00EE, CodeMask::Ret),
+    (0xF000, 0x1000, CodeMask::Goto),
+    (0xF000, 0x2000, CodeMask::Call),
+    (0xF000, 0x3000, CodeMask::Eq),
+    (0xF000, 0x4000, CodeMask::Neq),
+    (0xF00F, 0x5000, CodeMask::Req),
+    (0xF000, 0x6000, CodeMask::Set),
+    (0xF000, 0x7000, CodeMask::Sum),
+    (0xF00F, 0x8000, CodeMask::Mov),
+    (0xF00F, 0x8001, CodeMask::Or),
+    (0xF00F, 0x8002, CodeMask::And),
+    (0xF00F, 0x8003, CodeMask::Xor),
+    (0xF00F, 0x8004, CodeMask::Add),
+    (0xF00F, 0x8005, CodeMask::Sub),
+    (0xF00F, 0x8006, CodeMask::Shfr),
+    (0xF00F, 0x8007, CodeMask::Subl),
+    (0xF00F, 0x800E, CodeMask::Shfl),
+    (0xF00F, 0x9000, CodeMask::Rneq),
+    (0xF000, 0xA000, CodeMask::Addr),
+    (0xF000, 0xB000, CodeMask::Jmp),
+    (0xF000, 0xC000, CodeMask::Rand),
+    (0xF000, 0xD000, CodeMask::Draw),
+    (0xF0FF, 0xE09E, CodeMask::Prsd),
+    (0xF0FF, 0xE0A1, CodeMask::Nprsd),
+    (0xF0FF, 0xF007, CodeMask::Gettm),
+    (0xF0FF, 0xF00A, CodeMask::Getin),
+    (0xF0FF, 0xF015, CodeMask::Settm),
+    (0xF0FF, 0xF018, CodeMask::Sndtm),
+    (0xF0FF, 0xF01E, CodeMask::Iat),
+    (0xF0FF, 0xF029, CodeMask::Isprt),
+    (0xF0FF, 0xF033, CodeMask::Bcd),
+    (0xF0FF, 0xF055, CodeMask::Str),
+    (0xF0FF, 0xF065, CodeMask::Load)
+];
+
+pub fn MatchMask(opcode: u16) -> Option<CodeMask> {
+    OPCODES
+        .iter()
+        .find(|&&(mask, pattern, _)| opcode & mask == pattern)
+        .map(|&(_, _, instruction)| instruction)
+}
