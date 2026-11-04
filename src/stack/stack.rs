@@ -1,22 +1,21 @@
 use crate::memory::memory::Memory;
 
 pub struct Stack {
-    base: usize,
-    max: usize,
     top: usize
 }
+
+const STACK_BASE: usize = 0xEA0;
+const STACK_MAX: usize = 0xF00;
 
 impl Stack {
     pub fn init_stack() -> Self {
         Stack {
-            base: 0xEA0,
-            max: 0xEFF,
-            top: 0xEA0
+            top: STACK_BASE
         }
     }
 
     fn check_limits(&self) -> bool {
-        self.top < self.base || self.top > self.max
+        self.top < STACK_BASE || self.top > STACK_MAX
     }
 
     pub fn pop(&mut self, mem: &Memory) -> u16 {
@@ -29,8 +28,7 @@ impl Stack {
     }
 
     pub fn push(&mut self, mem: &mut Memory, addr: u16) {
-        let v: Vec<u8> = vec![(addr & 0xFF00 >> 8) as u8, addr as u8];
-        mem.write(self.top, &v).expect("Stack overflow");
+        mem.write(self.top, &addr.to_be_bytes()).expect("Stack overflow");
         self.top += 2;
 
         if self.check_limits() { panic!("Stack overflow") }
@@ -48,27 +46,36 @@ mod tests {
     #[test]
     fn test_push() {
         let (mut stack, mut memory) = setup();
+        let mut rc: Vec<u8> = vec![0; 2];
 
         stack.push(&mut memory, 0x0100);
 
-        let mut rc: Vec<u8> = vec![0; 2];
-        memory.read(stack.base, 2, &mut rc).expect("Error reading");
-        print!("stack top: {}, {:?}", stack.top, rc);
+        memory.read(STACK_BASE, 2, &mut rc).expect("Error reading");
         assert_eq!(rc[0], 0x01);
     }
 
     #[test]
     fn test_pop() {
+        let (mut stack, mut memory) = setup();
+        stack.push(&mut memory, 0x0100);
 
+        let addr = stack.pop(&memory);
+
+        assert_eq!(addr, 0x100);
     }
 
     #[test]
+    #[should_panic(expected = "Stack overflow")]
     fn test_overflow() {
-
+        let (mut stack, mut memory) = setup();
+        stack.top = STACK_MAX;
+        stack.push(&mut memory, 0x0100);
     }
 
     #[test]
+    #[should_panic(expected = "Stack overflow")]
     fn test_underflow() {
-
+        let (mut stack, mut memory) = setup();
+        stack.pop(&mut memory);
     }
 }
