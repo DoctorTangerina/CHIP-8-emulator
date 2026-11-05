@@ -7,14 +7,16 @@ use pixels::{Pixels, SurfaceTexture};
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
-    event::WindowEvent,
+    event::{ElementState, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
+    keyboard::PhysicalKey,
     window::{Window, WindowId},
 };
 
 use crate::{
     cpu::cpu::SimCPU,
     graphic::screen::{SCREEN_HEIGHT, SCREEN_WIDTH, Screen},
+    input::io::IO,
     memory::memory::Memory,
     stack::stack::Stack,
 };
@@ -30,10 +32,11 @@ pub struct Display {
     memory: Memory,
     stack: Stack,
     screen: Screen,
+    io: IO,
 }
 
 impl Display {
-    pub fn run(cpu: SimCPU, memory: Memory, stack: Stack) {
+    pub fn run(cpu: SimCPU, memory: Memory, stack: Stack, io: IO) {
         let mut app = Self {
             window: None,
             pixels: None,
@@ -41,6 +44,7 @@ impl Display {
             memory,
             stack,
             screen: Screen::default(),
+            io,
         };
         let event_loop = EventLoop::new().expect("Could not create event loop");
 
@@ -120,14 +124,24 @@ impl ApplicationHandler for Display {
                     .render()
                     .expect("Could not render frame");
             }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if let PhysicalKey::Code(key) = event.physical_key {
+                    self.io
+                        .set_key_pressed(key, event.state == ElementState::Pressed);
+                }
+            }
             _ => {}
         }
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
         for _ in 0..INSTRUCTIONS_PER_FRAME {
-            self.cpu
-                .run_next_op(&mut self.stack, &mut self.memory, &mut self.screen);
+            self.cpu.run_next_op(
+                &mut self.stack,
+                &mut self.memory,
+                &mut self.screen,
+                &mut self.io,
+            );
         }
 
         if let Some(window) = &self.window {

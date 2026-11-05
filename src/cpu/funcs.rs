@@ -3,6 +3,7 @@ use std::collections::BTreeMap;
 use crate::{
     cpu::{cpu::SimCPU, op_table::CodeMask},
     graphic::screen::Screen,
+    input::io::IO,
     memory::memory::Memory,
     stack::stack::Stack,
 };
@@ -12,6 +13,7 @@ pub(super) struct Ctx<'a> {
     stack: &'a mut Stack,
     memory: &'a mut Memory,
     screen: &'a mut Screen,
+    io: &'a mut IO,
     args: u16,
 }
 
@@ -21,13 +23,15 @@ impl<'a> Ctx<'a> {
         stack: &'a mut Stack,
         memory: &'a mut Memory,
         screen: &'a mut Screen,
+        io: &'a mut IO,
         i: u16,
     ) -> Self {
         Ctx {
             cpu: cpu,
             stack: stack,
             memory: memory,
-            screen,
+            screen: screen,
+            io: io,
             args: i,
         }
     }
@@ -277,11 +281,21 @@ fn draw(ctx: &mut Ctx) {
 }
 
 fn prsd(ctx: &mut Ctx) {
-    unimplemented!("prsd")
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+    let key: u8 = ctx.cpu.get_value_at_reg(x);
+
+    if ctx.io.is_key_pressed(key) {
+        ctx.cpu.skip_next_instruction();
+    }
 }
 
 fn nprsd(ctx: &mut Ctx) {
-    unimplemented!("nprsd")
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+    let key: u8 = ctx.cpu.get_value_at_reg(x);
+
+    if !ctx.io.is_key_pressed(key) {
+        ctx.cpu.skip_next_instruction();
+    }
 }
 
 fn gettm(ctx: &mut Ctx) {
@@ -289,7 +303,15 @@ fn gettm(ctx: &mut Ctx) {
 }
 
 fn getin(ctx: &mut Ctx) {
-    unimplemented!("getin")
+    if !ctx.cpu.is_waiting() {
+        ctx.cpu.wait();
+        ctx.io.set_read();
+    } else if !ctx.io.is_reading() {
+        let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+
+        ctx.cpu.unblock();
+        ctx.cpu.set_value_at_reg(x, ctx.io.get_key_read());
+    }
 }
 
 fn settm(ctx: &mut Ctx) {
@@ -366,7 +388,8 @@ mod tests {
         let mut stack = Stack::init_stack();
         let mut mem = Memory::init_memory();
         let mut screen = Screen::default();
-        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, opcode);
+        let mut io = IO::init_io();
+        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, &mut io, opcode);
 
         // V0 = 0x20
         set(&mut ctx);

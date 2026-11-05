@@ -5,6 +5,7 @@ use crate::cpu::op_table::{CodeMask, match_mask};
 use crate::cpu::registers::{AddrRegister, Register};
 
 use crate::graphic::screen::Screen;
+use crate::input::io::IO;
 use crate::memory::memory::Memory;
 use crate::stack::stack::Stack;
 
@@ -13,6 +14,7 @@ pub struct SimCPU {
     addr_reg: AddrRegister,
     prog_counter: AddrRegister,
     op_list: BTreeMap<CodeMask, fn(&mut Ctx<'_>)>,
+    waiting: bool,
 }
 
 impl SimCPU {
@@ -22,12 +24,30 @@ impl SimCPU {
             addr_reg: AddrRegister::init(),
             prog_counter: AddrRegister::init(),
             op_list: init_functions(),
+            waiting: false,
         }
     }
 
-    pub fn run_next_op(&mut self, stack: &mut Stack, mem: &mut Memory, screen: &mut Screen) {
-        let addr: u16 = self.get_pc_address();
-        self.set_pc_address(addr + 2);
+    pub fn is_waiting(&self) -> bool {
+        self.waiting
+    }
+
+    pub fn wait(&mut self) {
+        self.waiting = true;
+    }
+
+    pub fn unblock(&mut self) {
+        self.waiting = false;
+    }
+
+    pub fn run_next_op(
+        &mut self,
+        stack: &mut Stack,
+        mem: &mut Memory,
+        screen: &mut Screen,
+        io: &mut IO,
+    ) {
+        let mut addr: u16 = self.get_pc_address();
 
         let code: u16 = mem.fetch_op(usize::from(addr));
 
@@ -37,8 +57,13 @@ impl SimCPU {
             .expect("Function not found");
 
         {
-            let mut ctx: Ctx = Ctx::init(self, stack, mem, screen, code);
+            let mut ctx: Ctx = Ctx::init(self, stack, mem, screen, io, code);
             handler(&mut ctx);
+        }
+
+        if !self.is_waiting() {
+            addr = self.get_pc_address();
+            self.set_pc_address(addr + 2);
         }
     }
 
@@ -87,12 +112,13 @@ mod tests {
         let mut mem: Memory = Memory::init_memory();
         let mut stack: Stack = Stack::init_stack();
         let mut screen = Screen::default();
+        let mut io: IO = IO::init_io();
 
         mem.write(0, &code).expect("Couldn't initialize code");
 
         let mut i: usize = usize::from(cpu.get_pc_address());
         while i < code.len() {
-            cpu.run_next_op(&mut stack, &mut mem, &mut screen);
+            cpu.run_next_op(&mut stack, &mut mem, &mut screen, &mut io);
 
             i = usize::from(cpu.get_pc_address());
         }
@@ -125,12 +151,13 @@ mod tests {
         let mut mem: Memory = Memory::init_memory();
         let mut stack: Stack = Stack::init_stack();
         let mut screen = Screen::default();
+        let mut io: IO = IO::init_io();
 
         mem.write(0, &code).expect("Couldn't initialize code");
 
         let mut i: usize = usize::from(cpu.get_pc_address());
         while i < code.len() {
-            cpu.run_next_op(&mut stack, &mut mem, &mut screen);
+            cpu.run_next_op(&mut stack, &mut mem, &mut screen, &mut io);
 
             i = usize::from(cpu.get_pc_address());
         }
