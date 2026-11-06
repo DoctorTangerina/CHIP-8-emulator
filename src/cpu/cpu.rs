@@ -47,7 +47,8 @@ impl SimCPU {
         screen: &mut Screen,
         io: &mut IO,
     ) {
-        let mut addr: u16 = self.get_pc_address();
+        let addr: u16 = self.get_pc_address();
+        self.set_pc_address(addr + 2);
 
         let code: u16 = mem.fetch_op(usize::from(addr));
 
@@ -61,9 +62,8 @@ impl SimCPU {
             handler(&mut ctx);
         }
 
-        if !self.is_waiting() {
-            addr = self.get_pc_address();
-            self.set_pc_address(addr + 2);
+        if self.is_waiting() {
+            self.set_pc_address(addr);
         }
     }
 
@@ -143,7 +143,7 @@ mod tests {
             0x30, 0x20, // if (V0 == 0x20) skip
             0x70, 0x12, // V0 += 0x12
             0x40, 0x20, // if (V0 != 0x20) skip
-            0x10, 0x0E, // jmp 0x00E
+            0x10, 0x0E, // goto 0x00E
             0x81, 0x00, // V1 = V0
         ];
 

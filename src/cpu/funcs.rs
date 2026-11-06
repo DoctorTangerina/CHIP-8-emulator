@@ -378,22 +378,45 @@ fn load(ctx: &mut Ctx) {
 
 #[cfg(test)]
 mod tests {
+    use winit::keyboard::KeyCode;
+
     use super::*;
+
+    fn init() -> (SimCPU, Memory, Stack, Screen, IO) {
+        (SimCPU::init_cpu(), Memory::init_memory(), Stack::init_stack(), Screen::default(), IO::init_io())
+    }
 
     #[test]
     fn test_set_func() {
         let opcode: u16 = 0x0020;
 
-        let mut cpu = SimCPU::init_cpu();
-        let mut stack = Stack::init_stack();
-        let mut mem = Memory::init_memory();
-        let mut screen = Screen::default();
-        let mut io = IO::init_io();
+        let (mut cpu, mut mem, mut stack, mut screen, mut io) = init();
         let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, &mut io, opcode);
 
         // V0 = 0x20
         set(&mut ctx);
 
         assert_eq!(ctx.cpu.get_value_at_reg(0), 0x20)
+    }
+
+    #[test]
+    fn test_getin_func() {
+        let opcode: u16 = 0xF10A;
+
+        let (mut cpu, mut mem, mut stack, mut screen, mut io) = init();
+        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, &mut io, opcode);
+
+        assert_eq!(ctx.cpu.is_waiting(), false);
+
+        getin(&mut ctx);
+
+        assert_eq!(ctx.cpu.is_waiting(), true);
+
+        ctx.io.set_key_pressed(KeyCode::Digit4, true);
+
+        getin(&mut ctx);
+
+        assert_eq!(ctx.cpu.is_waiting(), false);
+        assert_eq!(ctx.cpu.get_value_at_reg(1), 0xC);
     }
 }
