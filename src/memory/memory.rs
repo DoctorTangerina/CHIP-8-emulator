@@ -1,5 +1,6 @@
 const MEMORY_TOTAL_SIZE: usize = 4096;
 
+#[derive(Debug)]
 pub struct Memory {
     _mem: Box<[u8; MEMORY_TOTAL_SIZE]>,
 }

@@ -61,10 +61,7 @@ impl SimCPU {
         let code: u16 = mem.fetch_op(usize::from(addr));
 
         let operation = match_mask(code).expect("Operation unknown");
-        let handler = *self
-            .op_list
-            .get(&operation)
-            .expect("Function not found");
+        let handler = *self.op_list.get(&operation).expect("Function not found");
 
         if *TRACE_INSTRUCTIONS.get_or_init(|| std::env::var_os("CHIP8_TRACE").is_some()) {
             println!(
