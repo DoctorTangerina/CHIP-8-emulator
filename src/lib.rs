@@ -1,6 +1,7 @@
 use crate::{
     cpu::cpu::SimCPU, input::io::IO, memory::memory::Memory, sound::sound::Sound,
     stack::stack::Stack, timer::timer::Timer,
+    graphic::font::init_font,
 };
 
 pub mod cpu;
@@ -12,9 +13,17 @@ pub mod stack;
 pub mod timer;
 
 pub fn init_sim() -> (SimCPU, Memory, Stack, IO, Timer, Sound) {
+    let mut cpu = SimCPU::init_cpu();
+
+    cpu.set_pc_address(0x200);
+    
+    let mut mem = Memory::init_memory();
+
+    init_font(&mut mem);
+
     (
-        SimCPU::init_cpu(),
-        Memory::init_memory(),
+        cpu,
+        mem,
         Stack::init_stack(),
         IO::init_io(),
         Timer::init_timer(),

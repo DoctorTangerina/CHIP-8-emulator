@@ -24,7 +24,7 @@ use crate::{
     timer::timer::Timer,
 };
 
-const WINDOW_SCALE: u32 = 10;
+const WINDOW_SCALE: u32 = 20;
 const CPU_FREQUENCY: u64 = 700;
 const CPU_CYCLE: Duration = Duration::from_nanos(1_000_000_000 / CPU_FREQUENCY);
 const FRAME_DURATION: Duration = Duration::from_millis(16);

@@ -341,7 +341,7 @@ fn isprt(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
 
     ctx.cpu
-        .set_i_address((ctx.cpu.get_value_at_reg(x) * 5) as u16);
+        .set_i_address(ctx.cpu.get_value_at_reg(x) as u16 * 5);
 }
 
 fn bcd(ctx: &mut Ctx) {
