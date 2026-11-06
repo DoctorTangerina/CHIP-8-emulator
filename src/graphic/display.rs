@@ -133,12 +133,21 @@ impl ApplicationHandler for Display {
                     .expect("Pixel surface is not initialized")
                     .frame_mut();
 
-                for (rgba, &on) in frame.chunks_exact_mut(4).zip(self.screen.pixels().iter()) {
-                    rgba.copy_from_slice(if on {
-                        &[0xFF, 0xFF, 0xFF, 0xFF]
-                    } else {
-                        &[0x00, 0x00, 0x00, 0xFF]
-                    });
+                let mut buffer: Vec<u8> = vec![0; 256];
+                self.memory
+                    .read(self.screen.display_buffer_addr(), 256, &mut buffer)
+                    .expect("Couldn't read frame buffer");
+
+                // Each byte holds 8 pixels (MSB = leftmost), so each byte maps to 8 RGBA chunks.
+                for (rgba_byte, &byxel) in frame.chunks_exact_mut(4 * 8).zip(buffer.iter()) {
+                    for (bit, rgba) in rgba_byte.chunks_exact_mut(4).enumerate() {
+                        let on = (byxel << bit) & 0x80 != 0;
+                        rgba.copy_from_slice(if on {
+                            &[0xFF, 0xFF, 0xFF, 0xFF]
+                        } else {
+                            &[0x00, 0x00, 0x00, 0xFF]
+                        });
+                    }
                 }
 
                 self.pixels

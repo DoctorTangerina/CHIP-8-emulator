@@ -3,25 +3,29 @@ use crate::memory::memory::Memory;
 pub const SCREEN_WIDTH: usize = 64;
 pub const SCREEN_HEIGHT: usize = 32;
 
+const START_SCREEN_BUFFER: usize = 0xF00;
+
 pub struct Screen {
-    pixels: [bool; SCREEN_WIDTH * SCREEN_HEIGHT],
+    base: usize,
 }
 
 impl Default for Screen {
     fn default() -> Self {
         Self {
-            pixels: [false; SCREEN_WIDTH * SCREEN_HEIGHT],
+            base: START_SCREEN_BUFFER,
         }
     }
 }
 
 impl Screen {
-    pub fn clear(&mut self) {
-        self.pixels.fill(false);
+    pub fn clear(&mut self, mem: &mut Memory) {
+        mem.write(self.base, &vec![0; 256])
+            .expect("Couldn't clear frame buffer");
     }
 
-    pub fn draw(&mut self, x: u8, y: u8, memory: &Memory, start: u16, height: u8) -> bool {
-        let mut collision = false;
+    pub fn draw(&mut self, x: u8, y: u8, memory: &mut Memory, start: u16, height: u8) -> bool {
+        let mut collision: bool = false;
+        let screen_x = (usize::from(x)) % SCREEN_WIDTH;
 
         for row in 0..usize::from(height) {
             let mut sprite = vec![0];
@@ -29,24 +33,42 @@ impl Screen {
                 .read(usize::from(start) + row, 1, &mut sprite)
                 .expect("Could not read sprite data from memory");
 
-            for column in 0..8 {
-                if sprite[0] & (0x80 >> column) == 0 {
+            let screen_y = (usize::from(y) + row) % SCREEN_HEIGHT;
+
+            // The sprite row may straddle two framebuffer bytes when x isn't byte-aligned.
+            let shift = screen_x % 8;
+            let first_byte = screen_x / 8;
+            let parts = [
+                (first_byte, sprite[0] >> shift),
+                (first_byte + 1, ((u16::from(sprite[0]) << 8) >> shift) as u8),
+            ];
+
+            for (byte_col, bits) in parts {
+                // Clip pixels past the right edge instead of wrapping them.
+                if bits == 0 || byte_col >= SCREEN_WIDTH / 8 {
                     continue;
                 }
+                let addr = self.base + screen_y * (SCREEN_WIDTH / 8) + byte_col;
 
-                let screen_x = (usize::from(x) + column) % SCREEN_WIDTH;
-                let screen_y = (usize::from(y) + row) % SCREEN_HEIGHT;
-                let pixel = &mut self.pixels[screen_y * SCREEN_WIDTH + screen_x];
-                collision |= *pixel;
-                *pixel ^= true;
+                let mut buffer = vec![0];
+                memory
+                    .read(addr, 1, &mut buffer)
+                    .expect("Couldn't read from frame buffer");
+
+                collision |= buffer[0] & bits != 0;
+                buffer[0] ^= bits;
+
+                memory
+                    .write(addr, &buffer)
+                    .expect("Couldn't write to frame buffer");
             }
         }
 
         collision
     }
 
-    pub fn pixels(&self) -> &[bool; SCREEN_WIDTH * SCREEN_HEIGHT] {
-        &self.pixels
+    pub fn display_buffer_addr(&self) -> usize {
+        self.base
     }
 }
 
@@ -58,13 +80,44 @@ mod tests {
     fn draw_toggles_pixels_and_reports_collisions() {
         let mut screen = Screen::default();
         let mut memory = Memory::init_memory();
-        memory.write(0x300, &[0b1100_0000]).unwrap();
+        let mut byxel: Vec<u8> = vec![0];
+        let sprite: u8 = 0b1100_0000;
+        memory.write(0x300, &[sprite]).unwrap();
 
-        assert!(!screen.draw(0, 0, &memory, 0x300, 1));
-        assert!(screen.pixels()[0]);
-        assert!(screen.pixels()[1]);
-        assert!(screen.draw(0, 0, &memory, 0x300, 1));
-        assert!(!screen.pixels()[0]);
-        assert!(!screen.pixels()[1]);
+        assert!(!screen.draw(0, 0, &mut memory, 0x300, 1));
+        memory.read(screen.base, 1, &mut byxel).unwrap();
+        assert!(
+            byxel[0] & sprite == sprite,
+            "byxel: {:b}, sprite {:b}",
+            byxel[0],
+            sprite
+        );
+
+        assert!(screen.draw(0, 0, &mut memory, 0x300, 1));
+        memory.read(screen.base, 1, &mut byxel).unwrap();
+        assert!(
+            byxel[0] & sprite == 0,
+            "byxel: {:b}, sprite {:b}",
+            byxel[0],
+            sprite
+        );
+    }
+
+    #[test]
+    fn draw_toggles_pixels_with_unaligned_byte() {
+        let mut screen = Screen::default();
+        let mut memory = Memory::init_memory();
+        let mut byxel: Vec<u8> = vec![0; 2];
+        let sprite: u8 = 0b1100_0011;
+        memory.write(0x300, &[sprite]).unwrap();
+
+        assert!(!screen.draw(3, 0, &mut memory, 0x300, 1));
+        memory.read(screen.base, 2, &mut byxel).unwrap();
+        assert!(
+            byxel[0] & 0b0001_1000 == 0b0001_1000 && byxel[1] & 0b0110_0000 == 0b0110_0000,
+            "byxel: {:08b} {:08b}, sprite {:08b}",
+            byxel[0], byxel[1],
+            sprite
+        );
     }
 }

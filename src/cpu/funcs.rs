@@ -92,7 +92,7 @@ fn mccall(ctx: &mut Ctx) {
 }
 
 fn clear(ctx: &mut Ctx) {
-    ctx.screen.clear();
+    ctx.screen.clear(ctx.memory);
 }
 
 fn ret(ctx: &mut Ctx) {
