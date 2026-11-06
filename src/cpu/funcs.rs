@@ -5,7 +5,9 @@ use crate::{
     graphic::screen::Screen,
     input::io::IO,
     memory::memory::Memory,
+    sound::sound::Sound,
     stack::stack::Stack,
+    timer::timer::Timer,
 };
 
 pub(super) struct Ctx<'a> {
@@ -14,6 +16,8 @@ pub(super) struct Ctx<'a> {
     memory: &'a mut Memory,
     screen: &'a mut Screen,
     io: &'a mut IO,
+    timer: &'a mut Timer,
+    sound: &'a mut Sound,
     args: u16,
 }
 
@@ -24,14 +28,18 @@ impl<'a> Ctx<'a> {
         memory: &'a mut Memory,
         screen: &'a mut Screen,
         io: &'a mut IO,
+        timer: &'a mut Timer,
+        sound: &'a mut Sound,
         i: u16,
     ) -> Self {
-        Ctx {
+        Self {
             cpu: cpu,
             stack: stack,
             memory: memory,
             screen: screen,
             io: io,
+            timer: timer,
+            sound: sound,
             args: i,
         }
     }
@@ -299,7 +307,9 @@ fn nprsd(ctx: &mut Ctx) {
 }
 
 fn gettm(ctx: &mut Ctx) {
-    unimplemented!("gettm")
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+
+    ctx.cpu.set_value_at_reg(x, ctx.timer.get_timer());
 }
 
 fn getin(ctx: &mut Ctx) {
@@ -315,11 +325,15 @@ fn getin(ctx: &mut Ctx) {
 }
 
 fn settm(ctx: &mut Ctx) {
-    unimplemented!("settm")
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+
+    ctx.timer.set_timer(ctx.cpu.get_value_at_reg(x));
 }
 
 fn sndtm(ctx: &mut Ctx) {
-    unimplemented!("sndtm")
+    let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
+
+    ctx.sound.set_timer(ctx.cpu.get_value_at_reg(x));
 }
 
 fn iat(ctx: &mut Ctx) {
@@ -382,16 +396,33 @@ mod tests {
 
     use super::*;
 
-    fn init() -> (SimCPU, Memory, Stack, Screen, IO) {
-        (SimCPU::init_cpu(), Memory::init_memory(), Stack::init_stack(), Screen::default(), IO::init_io())
+    fn init() -> (SimCPU, Memory, Stack, Screen, IO, Timer, Sound) {
+        (
+            SimCPU::init_cpu(),
+            Memory::init_memory(),
+            Stack::init_stack(),
+            Screen::default(),
+            IO::init_io(),
+            Timer::init_timer(),
+            Sound::init_sound(),
+        )
     }
 
     #[test]
     fn test_set_func() {
         let opcode: u16 = 0x0020;
 
-        let (mut cpu, mut mem, mut stack, mut screen, mut io) = init();
-        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, &mut io, opcode);
+        let (mut cpu, mut mem, mut stack, mut screen, mut io, mut timer, mut sound) = init();
+        let mut ctx: Ctx = Ctx::init(
+            &mut cpu,
+            &mut stack,
+            &mut mem,
+            &mut screen,
+            &mut io,
+            &mut timer,
+            &mut sound,
+            opcode,
+        );
 
         // V0 = 0x20
         set(&mut ctx);
@@ -403,8 +434,17 @@ mod tests {
     fn test_getin_func() {
         let opcode: u16 = 0xF10A;
 
-        let (mut cpu, mut mem, mut stack, mut screen, mut io) = init();
-        let mut ctx: Ctx = Ctx::init(&mut cpu, &mut stack, &mut mem, &mut screen, &mut io, opcode);
+        let (mut cpu, mut mem, mut stack, mut screen, mut io, mut timer, mut sound) = init();
+        let mut ctx: Ctx = Ctx::init(
+            &mut cpu,
+            &mut stack,
+            &mut mem,
+            &mut screen,
+            &mut io,
+            &mut timer,
+            &mut sound,
+            opcode,
+        );
 
         assert_eq!(ctx.cpu.is_waiting(), false);
 

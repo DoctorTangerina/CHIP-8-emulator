@@ -7,7 +7,7 @@ pub struct IO {
 
 impl IO {
     pub fn init_io() -> Self {
-        IO {
+        Self {
             keys: [false; 16],
             read: (false, 0),
         }

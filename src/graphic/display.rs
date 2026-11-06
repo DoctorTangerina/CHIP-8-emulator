@@ -4,6 +4,7 @@ use std::{
 };
 
 use pixels::{Pixels, SurfaceTexture};
+use rodio::{OutputStreamBuilder, Sink, Source, source::SineWave};
 use winit::{
     application::ApplicationHandler,
     dpi::PhysicalSize,
@@ -18,7 +19,9 @@ use crate::{
     graphic::screen::{SCREEN_HEIGHT, SCREEN_WIDTH, Screen},
     input::io::IO,
     memory::memory::Memory,
+    sound::sound::Sound,
     stack::stack::Stack,
+    timer::timer::Timer,
 };
 
 const WINDOW_SCALE: u32 = 10;
@@ -33,10 +36,20 @@ pub struct Display {
     stack: Stack,
     screen: Screen,
     io: IO,
+    timer: Timer,
+    last_timer_update: Instant,
+    sound: Sound,
+    audio_sink: Sink,
 }
 
 impl Display {
-    pub fn run(cpu: SimCPU, memory: Memory, stack: Stack, io: IO) {
+    pub fn run(cpu: SimCPU, memory: Memory, stack: Stack, io: IO, timer: Timer, sound: Sound) {
+        let audio_stream =
+            OutputStreamBuilder::open_default_stream().expect("Could not open audio output");
+        let audio_sink = Sink::connect_new(audio_stream.mixer());
+        audio_sink.append(SineWave::new(440.0).amplify(0.15).repeat_infinite());
+        audio_sink.pause();
+
         let mut app = Self {
             window: None,
             pixels: None,
@@ -45,6 +58,10 @@ impl Display {
             stack,
             screen: Screen::default(),
             io,
+            timer,
+            last_timer_update: Instant::now(),
+            sound,
+            audio_sink,
         };
         let event_loop = EventLoop::new().expect("Could not create event loop");
 
@@ -135,13 +152,27 @@ impl ApplicationHandler for Display {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let now = Instant::now();
+        let elapsed = now.duration_since(self.last_timer_update);
+        self.timer.advance(elapsed);
+        self.sound.advance(elapsed);
+        self.last_timer_update = now;
+
         for _ in 0..INSTRUCTIONS_PER_FRAME {
             self.cpu.run_next_op(
                 &mut self.stack,
                 &mut self.memory,
                 &mut self.screen,
                 &mut self.io,
+                &mut self.timer,
+                &mut self.sound,
             );
+        }
+
+        if self.sound.is_active() {
+            self.audio_sink.play();
+        } else {
+            self.audio_sink.pause();
         }
 
         if let Some(window) = &self.window {

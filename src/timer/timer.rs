@@ -26,10 +26,12 @@ impl Timer {
 
     pub fn advance(&mut self, elapsed: Duration) {
         self.elapsed_time += elapsed.as_nanos() * TIMER_HZ;
-    
+
         let ticks = self.elapsed_time / NANOS_PER_SECOND;
         self.elapsed_time %= NANOS_PER_SECOND;
 
-        self.value = self.value.saturating_sub(ticks.min(u128::from(self.value)) as u8);
+        self.value = self
+            .value
+            .saturating_sub(ticks.min(u128::from(self.value)) as u8);
     }
 }

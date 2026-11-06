@@ -6,7 +6,7 @@ pub struct Memory {
 
 impl Memory {
     pub fn init_memory() -> Self {
-        Memory {
+        Self {
             _mem: vec![0u8; MEMORY_TOTAL_SIZE]
                 .into_boxed_slice()
                 .try_into()

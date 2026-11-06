@@ -7,7 +7,9 @@ use crate::cpu::registers::{AddrRegister, Register};
 use crate::graphic::screen::Screen;
 use crate::input::io::IO;
 use crate::memory::memory::Memory;
+use crate::sound::sound::Sound;
 use crate::stack::stack::Stack;
+use crate::timer::timer::Timer;
 
 pub struct SimCPU {
     regs: Vec<Register>,
@@ -19,7 +21,7 @@ pub struct SimCPU {
 
 impl SimCPU {
     pub fn init_cpu() -> Self {
-        SimCPU {
+        Self {
             regs: (0..0x10).map(|_i: i32| Register::init()).collect(),
             addr_reg: AddrRegister::init(),
             prog_counter: AddrRegister::init(),
@@ -46,6 +48,8 @@ impl SimCPU {
         mem: &mut Memory,
         screen: &mut Screen,
         io: &mut IO,
+        timer: &mut Timer,
+        sound: &mut Sound,
     ) {
         let addr: u16 = self.get_pc_address();
         self.set_pc_address(addr + 2);
@@ -58,7 +62,7 @@ impl SimCPU {
             .expect("Function not found");
 
         {
-            let mut ctx: Ctx = Ctx::init(self, stack, mem, screen, io, code);
+            let mut ctx: Ctx = Ctx::init(self, stack, mem, screen, io, timer, sound, code);
             handler(&mut ctx);
         }
 
@@ -113,12 +117,21 @@ mod tests {
         let mut stack: Stack = Stack::init_stack();
         let mut screen = Screen::default();
         let mut io: IO = IO::init_io();
+        let mut timer: Timer = Timer::init_timer();
+        let mut sound: Sound = Sound::init_sound();
 
         mem.write(0, &code).expect("Couldn't initialize code");
 
         let mut i: usize = usize::from(cpu.get_pc_address());
         while i < code.len() {
-            cpu.run_next_op(&mut stack, &mut mem, &mut screen, &mut io);
+            cpu.run_next_op(
+                &mut stack,
+                &mut mem,
+                &mut screen,
+                &mut io,
+                &mut timer,
+                &mut sound,
+            );
 
             i = usize::from(cpu.get_pc_address());
         }
@@ -152,12 +165,21 @@ mod tests {
         let mut stack: Stack = Stack::init_stack();
         let mut screen = Screen::default();
         let mut io: IO = IO::init_io();
+        let mut timer: Timer = Timer::init_timer();
+        let mut sound: Sound = Sound::init_sound();
 
         mem.write(0, &code).expect("Couldn't initialize code");
 
         let mut i: usize = usize::from(cpu.get_pc_address());
         while i < code.len() {
-            cpu.run_next_op(&mut stack, &mut mem, &mut screen, &mut io);
+            cpu.run_next_op(
+                &mut stack,
+                &mut mem,
+                &mut screen,
+                &mut io,
+                &mut timer,
+                &mut sound,
+            );
 
             i = usize::from(cpu.get_pc_address());
         }

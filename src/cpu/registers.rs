@@ -8,7 +8,7 @@ pub(super) struct AddrRegister {
 
 impl Register {
     pub fn init() -> Self {
-        Register { byte: 0 }
+        Self { byte: 0 }
     }
 
     pub fn get_value(&self) -> u8 {
@@ -22,7 +22,7 @@ impl Register {
 
 impl AddrRegister {
     pub fn init() -> Self {
-        AddrRegister { addr: 0 }
+        Self { addr: 0 }
     }
 
     pub fn get_addr(&self) -> u16 {
