@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::OnceLock;
 
 use crate::cpu::funcs::{Ctx, init_functions};
 use crate::cpu::op_table::{CodeMask, match_mask};
@@ -11,6 +12,9 @@ use crate::sound::sound::Sound;
 use crate::stack::stack::Stack;
 use crate::timer::timer::Timer;
 
+static TRACE_INSTRUCTIONS: OnceLock<bool> = OnceLock::new();
+
+#[derive(Debug)]
 pub struct SimCPU {
     regs: Vec<Register>,
     addr_reg: AddrRegister,
@@ -56,10 +60,18 @@ impl SimCPU {
 
         let code: u16 = mem.fetch_op(usize::from(addr));
 
+        let operation = match_mask(code).expect("Operation unknown");
         let handler = *self
             .op_list
-            .get(&match_mask(code).expect("Operation unknown"))
+            .get(&operation)
             .expect("Function not found");
+
+        if *TRACE_INSTRUCTIONS.get_or_init(|| std::env::var_os("CHIP8_TRACE").is_some()) {
+            println!(
+                "instruction: {:#06X} (handler: {:#?}), address: {:#06X}",
+                code, operation, addr
+            );
+        }
 
         {
             let mut ctx: Ctx = Ctx::init(self, stack, mem, screen, io, timer, sound, code);

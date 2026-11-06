@@ -1,4 +1,4 @@
-#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
 #[repr(u16)]
 pub(super) enum CodeMask {
     Mccall = 0x0000,
@@ -40,7 +40,7 @@ pub(super) enum CodeMask {
 
 const OPCODES: &[(u16, u16, CodeMask)] = &[
     // (mask, pattern, instruction)
-    (0xF000, 0x0000, CodeMask::Mccall),
+    // (0xF000, 0x0000, CodeMask::Mccall), will be ignored
     (0xFFFF, 0x00E0, CodeMask::Clear),
     (0xFFFF, 0x00EE, CodeMask::Ret),
     (0xF000, 0x1000, CodeMask::Goto),

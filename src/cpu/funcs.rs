@@ -191,9 +191,7 @@ fn add(ctx: &mut Ctx) {
         .get_value_at_reg(x)
         .overflowing_add(ctx.cpu.get_value_at_reg(y));
 
-    if carry {
-        ctx.cpu.set_value_at_reg(0xF, 1);
-    }
+    ctx.cpu.set_value_at_reg(0xF, u8::from(carry));
     ctx.cpu.set_value_at_reg(x, sum);
 }
 
@@ -201,14 +199,12 @@ fn sub(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let (sub, carry) = ctx
+    let (sub, borrow) = ctx
         .cpu
         .get_value_at_reg(x)
         .overflowing_sub(ctx.cpu.get_value_at_reg(y));
 
-    if carry {
-        ctx.cpu.set_value_at_reg(0xF, 1);
-    }
+    ctx.cpu.set_value_at_reg(0xF, u8::from(!borrow));
     ctx.cpu.set_value_at_reg(x, sub);
 }
 
@@ -225,14 +221,12 @@ fn subl(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let (sub, carry) = ctx
+    let (sub, borrow) = ctx
         .cpu
         .get_value_at_reg(y)
         .overflowing_sub(ctx.cpu.get_value_at_reg(x));
 
-    if carry {
-        ctx.cpu.set_value_at_reg(0xF, 1);
-    }
+    ctx.cpu.set_value_at_reg(0xF, u8::from(!borrow));
     ctx.cpu.set_value_at_reg(x, sub);
 }
 
@@ -241,7 +235,7 @@ fn shfl(ctx: &mut Ctx) {
     //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
     let u: u8 = ctx.cpu.get_value_at_reg(x);
-    ctx.cpu.set_value_at_reg(0xF, u & 0x80);
+    ctx.cpu.set_value_at_reg(0xF, u8::from(u & 0x80 != 0));
     ctx.cpu.set_value_at_reg(x, u << 1);
 }
 
@@ -396,6 +390,31 @@ mod tests {
 
     use super::*;
 
+    fn run_with_registers(
+        handler: fn(&mut Ctx<'_>),
+        opcode: u16,
+        registers: &[(u8, u8)],
+    ) -> SimCPU {
+        let (mut cpu, mut mem, mut stack, mut screen, mut io, mut timer, mut sound) = init();
+        for &(register, value) in registers {
+            cpu.set_value_at_reg(register, value);
+        }
+
+        let mut ctx: Ctx = Ctx::init(
+            &mut cpu,
+            &mut stack,
+            &mut mem,
+            &mut screen,
+            &mut io,
+            &mut timer,
+            &mut sound,
+            opcode,
+        );
+        handler(&mut ctx);
+        drop(ctx);
+        cpu
+    }
+
     fn init() -> (SimCPU, Memory, Stack, Screen, IO, Timer, Sound) {
         (
             SimCPU::init_cpu(),
@@ -428,6 +447,41 @@ mod tests {
         set(&mut ctx);
 
         assert_eq!(ctx.cpu.get_value_at_reg(0), 0x20)
+    }
+
+    #[test]
+    fn arithmetic_and_shift_opcodes_set_flags_for_both_outcomes() {
+        let cpu = run_with_registers(add, 0x8014, &[(0, 0xFF), (1, 1)]);
+        assert_eq!(cpu.get_value_at_reg(0), 0);
+        assert_eq!(cpu.get_value_at_reg(0xF), 1);
+
+        let cpu = run_with_registers(add, 0x8014, &[(0, 2), (1, 1), (0xF, 1)]);
+        assert_eq!(cpu.get_value_at_reg(0), 3);
+        assert_eq!(cpu.get_value_at_reg(0xF), 0);
+
+        let cpu = run_with_registers(sub, 0x8015, &[(0, 5), (1, 3)]);
+        assert_eq!(cpu.get_value_at_reg(0), 2);
+        assert_eq!(cpu.get_value_at_reg(0xF), 1);
+
+        let cpu = run_with_registers(sub, 0x8015, &[(0, 3), (1, 5)]);
+        assert_eq!(cpu.get_value_at_reg(0), 0xFE);
+        assert_eq!(cpu.get_value_at_reg(0xF), 0);
+
+        let cpu = run_with_registers(subl, 0x8017, &[(0, 3), (1, 5)]);
+        assert_eq!(cpu.get_value_at_reg(0), 2);
+        assert_eq!(cpu.get_value_at_reg(0xF), 1);
+
+        let cpu = run_with_registers(subl, 0x8017, &[(0, 5), (1, 3)]);
+        assert_eq!(cpu.get_value_at_reg(0), 0xFE);
+        assert_eq!(cpu.get_value_at_reg(0xF), 0);
+
+        let cpu = run_with_registers(shfl, 0x800E, &[(0, 0x81)]);
+        assert_eq!(cpu.get_value_at_reg(0), 0x02);
+        assert_eq!(cpu.get_value_at_reg(0xF), 1);
+
+        let cpu = run_with_registers(shfl, 0x800E, &[(0, 0x01), (0xF, 1)]);
+        assert_eq!(cpu.get_value_at_reg(0), 0x02);
+        assert_eq!(cpu.get_value_at_reg(0xF), 0);
     }
 
     #[test]

@@ -1,7 +1,9 @@
+#[derive(Debug)]
 pub(super) struct Register {
     byte: u8,
 }
 
+#[derive(Debug)]
 pub(super) struct AddrRegister {
     addr: u16,
 }
