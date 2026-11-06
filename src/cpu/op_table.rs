@@ -40,9 +40,9 @@ pub(super) enum CodeMask {
 
 const OPCODES: &[(u16, u16, CodeMask)] = &[
     // (mask, pattern, instruction)
-    // (0xF000, 0x0000, CodeMask::Mccall), will be ignored
     (0xFFFF, 0x00E0, CodeMask::Clear),
     (0xFFFF, 0x00EE, CodeMask::Ret),
+    (0xF000, 0x0000, CodeMask::Mccall), // searched last in 0x0NNN family as it can misinterpret 0x00EE and 0x00E0
     (0xF000, 0x1000, CodeMask::Goto),
     (0xF000, 0x2000, CodeMask::Call),
     (0xF000, 0x3000, CodeMask::Eq),
