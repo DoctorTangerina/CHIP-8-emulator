@@ -25,7 +25,8 @@ use crate::{
 };
 
 const WINDOW_SCALE: u32 = 10;
-const INSTRUCTIONS_PER_FRAME: usize = 10;
+const CPU_FREQUENCY: u64 = 700;
+const CPU_CYCLE: Duration = Duration::from_nanos(1_000_000_000 / CPU_FREQUENCY);
 const FRAME_DURATION: Duration = Duration::from_millis(16);
 
 pub struct Display {
@@ -38,6 +39,8 @@ pub struct Display {
     io: IO,
     timer: Timer,
     last_timer_update: Instant,
+    last_frame_update: Instant,
+    cpu_cycle_accumulator: Duration,
     sound: Sound,
     audio_sink: Sink,
 }
@@ -50,6 +53,7 @@ impl Display {
         audio_sink.append(SineWave::new(440.0).amplify(0.15).repeat_infinite());
         audio_sink.pause();
 
+        let now = Instant::now();
         let mut app = Self {
             window: None,
             pixels: None,
@@ -59,7 +63,9 @@ impl Display {
             screen: Screen::default(),
             io,
             timer,
-            last_timer_update: Instant::now(),
+            last_timer_update: now,
+            last_frame_update: now,
+            cpu_cycle_accumulator: Duration::ZERO,
             sound,
             audio_sink,
         };
@@ -158,7 +164,8 @@ impl ApplicationHandler for Display {
         self.sound.advance(elapsed);
         self.last_timer_update = now;
 
-        for _ in 0..INSTRUCTIONS_PER_FRAME {
+        self.cpu_cycle_accumulator += elapsed;
+        while self.cpu_cycle_accumulator >= CPU_CYCLE {
             self.cpu.run_next_op(
                 &mut self.stack,
                 &mut self.memory,
@@ -167,6 +174,7 @@ impl ApplicationHandler for Display {
                 &mut self.timer,
                 &mut self.sound,
             );
+            self.cpu_cycle_accumulator -= CPU_CYCLE;
         }
 
         if self.sound.is_active() {
@@ -175,9 +183,14 @@ impl ApplicationHandler for Display {
             self.audio_sink.pause();
         }
 
-        if let Some(window) = &self.window {
-            window.request_redraw();
+        if now.duration_since(self.last_frame_update) >= FRAME_DURATION {
+            if let Some(window) = &self.window {
+                window.request_redraw();
+            }
+            self.last_frame_update = now;
         }
-        event_loop.set_control_flow(ControlFlow::WaitUntil(Instant::now() + FRAME_DURATION));
+        event_loop.set_control_flow(ControlFlow::WaitUntil(
+            Instant::now() + CPU_CYCLE.saturating_sub(self.cpu_cycle_accumulator),
+        ));
     }
 }
