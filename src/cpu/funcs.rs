@@ -130,7 +130,7 @@ fn req(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    if ctx.cpu.get_value_at_reg(x) != ctx.cpu.get_value_at_reg(y) {
+    if ctx.cpu.get_value_at_reg(x) == ctx.cpu.get_value_at_reg(y) {
         ctx.cpu.skip_next_instruction();
     }
 }
