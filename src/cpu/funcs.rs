@@ -191,8 +191,8 @@ fn add(ctx: &mut Ctx) {
         .get_value_at_reg(x)
         .overflowing_add(ctx.cpu.get_value_at_reg(y));
 
-    ctx.cpu.set_value_at_reg(0xF, u8::from(carry));
     ctx.cpu.set_value_at_reg(x, sum);
+    ctx.cpu.set_value_at_reg(0xF, u8::from(carry));
 }
 
 fn sub(ctx: &mut Ctx) {
@@ -204,8 +204,8 @@ fn sub(ctx: &mut Ctx) {
         .get_value_at_reg(x)
         .overflowing_sub(ctx.cpu.get_value_at_reg(y));
 
-    ctx.cpu.set_value_at_reg(0xF, u8::from(!borrow));
     ctx.cpu.set_value_at_reg(x, sub);
+    ctx.cpu.set_value_at_reg(0xF, u8::from(!borrow));
 }
 
 fn shfr(ctx: &mut Ctx) {
@@ -213,8 +213,8 @@ fn shfr(ctx: &mut Ctx) {
     //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
     let u: u8 = ctx.cpu.get_value_at_reg(x);
-    ctx.cpu.set_value_at_reg(0xF, u & 0x1);
     ctx.cpu.set_value_at_reg(x, u >> 1);
+    ctx.cpu.set_value_at_reg(0xF, u & 0x1);
 }
 
 fn subl(ctx: &mut Ctx) {
@@ -226,8 +226,8 @@ fn subl(ctx: &mut Ctx) {
         .get_value_at_reg(y)
         .overflowing_sub(ctx.cpu.get_value_at_reg(x));
 
-    ctx.cpu.set_value_at_reg(0xF, u8::from(!borrow));
     ctx.cpu.set_value_at_reg(x, sub);
+    ctx.cpu.set_value_at_reg(0xF, u8::from(!borrow));
 }
 
 fn shfl(ctx: &mut Ctx) {
@@ -235,8 +235,8 @@ fn shfl(ctx: &mut Ctx) {
     //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
     let u: u8 = ctx.cpu.get_value_at_reg(x);
-    ctx.cpu.set_value_at_reg(0xF, u8::from(u & 0x80 != 0));
     ctx.cpu.set_value_at_reg(x, u << 1);
+    ctx.cpu.set_value_at_reg(0xF, u8::from(u & 0x80 != 0));
 }
 
 fn rneq(ctx: &mut Ctx) {
