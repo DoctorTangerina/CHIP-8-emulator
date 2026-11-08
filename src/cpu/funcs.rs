@@ -523,6 +523,7 @@ mod tests {
         assert_eq!(ctx.cpu.is_waiting(), true);
 
         ctx.io.set_key_pressed(KeyCode::Digit4, true);
+        ctx.io.set_key_pressed(KeyCode::Digit4, false);
 
         getin(&mut ctx);
 
