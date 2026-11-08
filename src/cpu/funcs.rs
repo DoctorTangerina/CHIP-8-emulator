@@ -162,6 +162,7 @@ fn or(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
+    ctx.cpu.set_value_at_reg(0xF, 0);
     ctx.cpu
         .set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) | ctx.cpu.get_value_at_reg(y));
 }
@@ -170,6 +171,7 @@ fn and(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
+    ctx.cpu.set_value_at_reg(0xF, 0);
     ctx.cpu
         .set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) & ctx.cpu.get_value_at_reg(y));
 }
@@ -178,6 +180,7 @@ fn xor(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
     let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
+    ctx.cpu.set_value_at_reg(0xF, 0);
     ctx.cpu
         .set_value_at_reg(x, ctx.cpu.get_value_at_reg(x) ^ ctx.cpu.get_value_at_reg(y));
 }
@@ -210,9 +213,9 @@ fn sub(ctx: &mut Ctx) {
 
 fn shfr(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
-    //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
+    let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let u: u8 = ctx.cpu.get_value_at_reg(x);
+    let u: u8 = ctx.cpu.get_value_at_reg(y);
     ctx.cpu.set_value_at_reg(x, u >> 1);
     ctx.cpu.set_value_at_reg(0xF, u & 0x1);
 }
@@ -232,9 +235,9 @@ fn subl(ctx: &mut Ctx) {
 
 fn shfl(ctx: &mut Ctx) {
     let x: u8 = ((ctx.args & 0xF00) >> 8) as u8;
-    //let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
+    let y: u8 = ((ctx.args & 0xF0) >> 4) as u8;
 
-    let u: u8 = ctx.cpu.get_value_at_reg(x);
+    let u: u8 = ctx.cpu.get_value_at_reg(y);
     ctx.cpu.set_value_at_reg(x, u << 1);
     ctx.cpu.set_value_at_reg(0xF, u8::from(u & 0x80 != 0));
 }
@@ -269,6 +272,16 @@ fn rand(ctx: &mut Ctx) {
 }
 
 fn draw(ctx: &mut Ctx) {
+    if !ctx.cpu.is_waiting() {
+       ctx.timer.clear_vblank();
+        ctx.cpu.wait();
+        return;
+    }
+    if !ctx.timer.get_vblank() {
+        return;
+    }
+    ctx.cpu.unblock();
+
     let x = ((ctx.args & 0xF00) >> 8) as u8;
     let y = ((ctx.args & 0xF0) >> 4) as u8;
     let height = (ctx.args & 0xF) as u8;
@@ -368,6 +381,8 @@ fn str(ctx: &mut Ctx) {
     ctx.memory
         .write(index, &v)
         .expect("Couldn't write to memory");
+
+    ctx.cpu.set_i_address((index + usize::from(x) + 1) as u16);
 }
 
 fn load(ctx: &mut Ctx) {
@@ -379,6 +394,7 @@ fn load(ctx: &mut Ctx) {
         .read(index, v.len(), &mut v)
         .expect("Couldn't read from memory");
 
+    ctx.cpu.set_i_address((index + usize::from(x) + 1) as u16);
     for i in 0..=x {
         ctx.cpu.set_value_at_reg(i, v[i as usize]);
     }

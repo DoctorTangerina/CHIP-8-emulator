@@ -25,15 +25,21 @@ impl Screen {
 
     pub fn draw(&mut self, x: u8, y: u8, memory: &mut Memory, start: u16, height: u8) -> bool {
         let mut collision: bool = false;
+        // The starting coordinates wrap, but the sprite itself is clipped at the edges.
         let screen_x = (usize::from(x)) % SCREEN_WIDTH;
+        let start_y = (usize::from(y)) % SCREEN_HEIGHT;
 
         for row in 0..usize::from(height) {
+            let screen_y = start_y + row;
+            // Clip rows past the bottom edge instead of wrapping them.
+            if screen_y >= SCREEN_HEIGHT {
+                break;
+            }
+
             let mut sprite = vec![0];
             memory
                 .read(usize::from(start) + row, 1, &mut sprite)
                 .expect("Could not read sprite data from memory");
-
-            let screen_y = (usize::from(y) + row) % SCREEN_HEIGHT;
 
             // The sprite row may straddle two framebuffer bytes when x isn't byte-aligned.
             let shift = screen_x % 8;
@@ -119,5 +125,24 @@ mod tests {
             byxel[0], byxel[1],
             sprite
         );
+    }
+
+    #[test]
+    fn draw_clips_rows_past_bottom_edge() {
+        let mut screen = Screen::default();
+        let mut memory = Memory::init_memory();
+        memory.write(0x300, &[0xFF, 0xFF, 0xFF]).unwrap();
+
+        // Rows 31, 32, 33: only row 31 is on screen; 32 and 33 must not wrap to rows 0 and 1.
+        assert!(!screen.draw(0, 31, &mut memory, 0x300, 3));
+
+        let row_bytes = SCREEN_WIDTH / 8;
+        let mut byxel: Vec<u8> = vec![0];
+        memory.read(screen.base + 31 * row_bytes, 1, &mut byxel).unwrap();
+        assert_eq!(byxel[0], 0xFF);
+
+        let mut top: Vec<u8> = vec![0; 2 * row_bytes];
+        memory.read(screen.base, 2 * row_bytes, &mut top).unwrap();
+        assert!(top.iter().all(|&b| b == 0), "top rows: {:?}", top);
     }
 }
