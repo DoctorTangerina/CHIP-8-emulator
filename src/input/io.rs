@@ -15,10 +15,13 @@ impl IO {
 
     pub fn set_key_pressed(&mut self, key: KeyCode, pressed: bool) {
         if let Some(chip8_key) = self.match_key(key) {
-            if self.read.0 && pressed {
-                self.read.1 = chip8_key as u8;
-                self.read.0 = false;
-            }
+            if self.read.0 {
+                if pressed{
+                    self.read.1 = chip8_key as u8;
+                } else if self.read.1 == chip8_key as u8 {
+                    self.read.0 = false;
+                }
+            } 
             self.keys[chip8_key] = pressed;
         }
     }
